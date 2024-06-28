@@ -336,6 +336,8 @@ do
         return self:md5_auth(msg)
       elseif 10 == _exp_0 then
         return self:scram_sha_256_auth(msg)
+      elseif 13 == _exp_0 then
+        return self:sm3_auth(msg)
       else
         return error("don't know how to auth: " .. tostring(auth_type))
       end
@@ -407,7 +409,7 @@ do
             if with_sig then
               signature = with_sig
             end
-            if signature:match("^md5") or signature:match("^sha1") or signature:match("sha1$") then
+            if signature:match("^md5") or signature:match("^sm3") or signature:match("^sha1") or signature:match("sha1$") then
               signature = "sha256"
             end
             cbind_data = assert(x509_digest(pem, signature))
@@ -530,6 +532,18 @@ do
       self:send_message(MSG_TYPE_F.password, {
         "md5",
         md5(md5(self.config.password .. self.config.user) .. salt),
+        NULL
+      })
+      return self:check_auth()
+    end,
+    sm3_auth = function(self, msg)
+      local sm3
+      sm3 = require("pgmoon.crypto").sm3
+      local salt = msg:sub(5, 8)
+      assert(self.config.password, "missing password, required for connect")
+      self:send_message(MSG_TYPE_F.password, {
+        "sm3",
+        sm3(sm3(self.config.password .. self.config.user) .. salt),
         NULL
       })
       return self:check_auth()

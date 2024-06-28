@@ -28,6 +28,36 @@ else
     return error("Either luaossl (recommended) or LuaCrypto is required to calculate md5")
   end
 end
+local sm3
+if ngx then
+  sm3 = ngx.sm3
+elseif pcall(function()
+  return require("openssl.digest")
+end) then
+  local openssl_digest = require("openssl.digest")
+  local hex_char
+  hex_char = function(c)
+    return string.format("%02x", string.byte(c))
+  end
+  local hex
+  hex = function(str)
+    return (str:gsub(".", hex_char))
+  end
+  sm3 = function(str)
+    return hex(openssl_digest.new("sm3"):final(str))
+  end
+elseif pcall(function()
+  return require("crypto")
+end) then
+  local crypto = require("crypto")
+  sm3 = function(str)
+    return crypto.digest("sm3", str)
+  end
+else
+  sm3 = function()
+    return error("Either luaossl (recommended) or LuaCrypto is required to calculate sm3")
+  end
+end
 local hmac_sha256
 if pcall(function()
   return require("openssl.hmac")
@@ -170,6 +200,7 @@ else
 end
 return {
   md5 = md5,
+  sm3 = sm3,
   hmac_sha256 = hmac_sha256,
   digest_sha256 = digest_sha256,
   kdf_derive_sha256 = kdf_derive_sha256,
